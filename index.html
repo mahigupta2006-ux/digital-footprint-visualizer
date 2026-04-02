@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Digital Footprint Analyzer</title>
+
+<!-- Chart library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+/* basic page styling */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+/* glass effect container */
+.container {
+    backdrop-filter: blur(15px);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 25px;
+    border-radius: 15px;
+    width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    text-align: center;
+}
+
+/* inputs */
+input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: none;
+}
+
+/* buttons */
+button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #38bdf8;
+    cursor: pointer;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+/* result section */
+#result {
+    margin-top: 15px;
+}
+
+/* history text */
+#history {
+    margin-top: 10px;
+    font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- login screen -->
+<div id="loginPage" class="container">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Enter your name">
+    <button onclick="loginUser()">Enter</button>
+</div>
+
+<!-- main app -->
+<div id="mainApp" class="container" style="display:none;">
+    <h2>Digital Footprint Analyzer</h2>
+
+    <input type="number" id="social" placeholder="Social Media (hrs)">
+    <input type="number" id="browsing" placeholder="Browsing (hrs)">
+    <input type="number" id="messaging" placeholder="Messaging (hrs)">
+    <input type="number" id="gaming" placeholder="Gaming (hrs)">
+
+    <button onclick="runAnalysis()">Analyze</button>
+
+    <div id="result"></div>
+
+    <canvas id="chart"></canvas>
+
+    <button onclick="showWeekly()">Show Weekly Data</button>
+    <div id="history"></div>
+</div>
+
+<script>
+
+let myChart; // will hold chart instance
+
+// ---------- LOGIN PART ----------
+function loginUser() {
+    let userName = document.getElementById("username").value;
+
+    if (userName.trim() === "") {
+        alert("Please enter your name first");
+        return;
+    }
+
+    // saving user locally
+    localStorage.setItem("userName", userName);
+
+    openApp();
+}
+
+function openApp() {
+    document.getElementById("loginPage").style.display = "none";
+    document.getElementById("mainApp").style.display = "block";
+}
+
+// check if already logged in
+window.onload = function () {
+    let savedUser = localStorage.getItem("userName");
+
+    if (savedUser) {
+        openApp();
+    }
+};
+
+// ---------- MAIN LOGIC ----------
+function runAnalysis() {
+
+    // getting values (default = 0 if empty)
+    let socialHrs = +document.getElementById("social").value || 0;
+    let browsingHrs = +document.getElementById("browsing").value || 0;
+    let messagingHrs = +document.getElementById("messaging").value || 0;
+    let gamingHrs = +document.getElementById("gaming").value || 0;
+
+    let totalTime = socialHrs + browsingHrs + messagingHrs + gamingHrs;
+
+    // simple scoring logic
+    let privacyScore = 100 - (socialHrs*2 + browsingHrs*1.5 + messagingHrs + gamingHrs*0.5);
+
+    let statusText = "";
+    let statusColor = "";
+
+    if (privacyScore > 80) {
+        statusText = "Low Exposure 👍";
+        statusColor = "lightgreen";
+    } else if (privacyScore > 50) {
+        statusText = "Moderate Exposure ⚠️";
+        statusColor = "yellow";
+    } else {
+        statusText = "High Risk 🚨";
+        statusColor = "red";
+    }
+
+    // showing result
+    document.getElementById("result").innerHTML =
+        `<span style="color:${statusColor}">
+        Total Time: ${totalTime} hrs <br>
+        Privacy Score: ${privacyScore.toFixed(2)} <br>
+        ${statusText}
+        </span>`;
+
+    // ---------- SAVE DATA ----------
+    let todayDate = new Date().toLocaleDateString();
+
+    let entry = {
+        date: todayDate,
+        total: totalTime,
+        score: privacyScore
+    };
+
+    let oldData = JSON.parse(localStorage.getItem("historyData")) || [];
+    oldData.push(entry);
+
+    localStorage.setItem("historyData", JSON.stringify(oldData));
+
+    // ---------- CHART ----------
+    if (myChart) myChart.destroy();
+
+    let ctx = document.getElementById("chart");
+
+    myChart = new Chart(ctx, {
+        type: "pie",
+        data: {
+            labels: ["Social", "Browsing", "Messaging", "Gaming"],
+            datasets: [{
+                data: [socialHrs, browsingHrs, messagingHrs, gamingHrs]
+            }]
+        }
+    });
+}
+
+// ---------- SHOW HISTORY ----------
+function showWeekly() {
+
+    let saved = JSON.parse(localStorage.getItem("historyData")) || [];
+
+    let text = "<h3>Last 7 Days</h3>";
+
+    saved.slice(-7).forEach(item => {
+        text += `${item.date} → ${item.total} hrs | Score: ${item.score.toFixed(2)} <br>`;
+    });
+
+    document.getElementById("history").innerHTML = text;
+}
+
+</script>
+
+</body>
+</html>
